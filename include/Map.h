@@ -59,7 +59,7 @@ public:
 
     void clear();
 
-    vector<KeyFrame*> mvpKeyFrameOrigins;
+    vector<KeyFrame*> mvpKeyFrameOrigins;//这个参数在双目的情况下只在双目初始化时被赋值
 
     std::mutex mMutexMapUpdate;
 
@@ -67,12 +67,12 @@ public:
     std::mutex mMutexPointCreation;
 
 protected:
-    std::set<MapPoint*> mspMapPoints;
-    std::set<KeyFrame*> mspKeyFrames;
+    std::set<MapPoint*> mspMapPoints;//在地图中存储地图点
+    std::set<KeyFrame*> mspKeyFrames;//在地图中存储关键帧
 
-    std::vector<MapPoint*> mvpReferenceMapPoints;
+    std::vector<MapPoint*> mvpReferenceMapPoints;//这个参数只在updatelocalmap函数中被更新，为了可视化用的。使用的是tracking线程中的mvpLocalMapPoints参数(局部地图点)
 
-    long unsigned int mnMaxKFid;
+    long unsigned int mnMaxKFid;//当前地图中关键帧的最大序号值
 
     // Index related to a big change in the map (loop closure, global BA)
     int mnBigChangeIdx;

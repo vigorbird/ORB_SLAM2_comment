@@ -35,6 +35,9 @@ FrameDrawer::FrameDrawer(Map* pMap):mpMap(pMap)
     mIm = cv::Mat(480,640,CV_8UC3, cv::Scalar(0,0,0));
 }
 
+// Draw last processed frame.
+//在当前图像上标注与地图匹配的特征点和上一帧匹配的特征点
+//这个函数是将要显示的变量绘制出来
 cv::Mat FrameDrawer::DrawFrame()
 {
     cv::Mat im;
@@ -59,7 +62,7 @@ cv::Mat FrameDrawer::DrawFrame()
             vIniKeys = mvIniKeys;
             vMatches = mvIniMatches;
         }
-        else if(mState==Tracking::OK)
+        else if(mState==Tracking::OK)//只看这种情况就足以
         {
             vCurrentKeys = mvCurrentKeys;
             vbVO = mvbVO;
@@ -72,7 +75,7 @@ cv::Mat FrameDrawer::DrawFrame()
     } // destroy scoped mutex -> release mutex
 
     if(im.channels()<3) //this should be always true
-        cvtColor(im,im,CV_GRAY2BGR);
+        cvtColor(im,im,CV_GRAY2BGR);//灰度图转BGR3通道，但每通道的值都是原先单通道的值，所以也是显 //示灰色的
 
     //Draw
     if(state==Tracking::NOT_INITIALIZED) //INITIALIZING
@@ -94,7 +97,7 @@ cv::Mat FrameDrawer::DrawFrame()
         const int n = vCurrentKeys.size();
         for(int i=0;i<n;i++)
         {
-            if(vbVO[i] || vbMap[i])
+            if(vbVO[i] || vbMap[i])//只绘制当前帧和track线程中参考关键帧匹配的地图点
             {
                 cv::Point2f pt1,pt2;
                 pt1.x=vCurrentKeys[i].pt.x-r;
@@ -103,15 +106,15 @@ cv::Mat FrameDrawer::DrawFrame()
                 pt2.y=vCurrentKeys[i].pt.y+r;
 
                 // This is a match to a MapPoint in the map
-                if(vbMap[i])
+                if(vbMap[i])//当前帧的这个地图点被其他的关键帧观测到过
                 {
-                    cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));
+                    cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));//绿色
                     cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(0,255,0),-1);
                     mnTracked++;
                 }
                 else // This is match to a "visual odometry" MapPoint created in the last frame
                 {
-                    cv::rectangle(im,pt1,pt2,cv::Scalar(255,0,0));
+                    cv::rectangle(im,pt1,pt2,cv::Scalar(255,0,0));//蓝色
                     cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(255,0,0),-1);
                     mnTrackedVO++;
                 }
@@ -120,12 +123,12 @@ cv::Mat FrameDrawer::DrawFrame()
     }
 
     cv::Mat imWithInfo;
-    DrawTextInfo(im,state, imWithInfo);
+    DrawTextInfo(im,state, imWithInfo);//这个函数是在当前帧中显示一些状态，例如是否跟踪丢失，词典是否处理完成等等
 
     return imWithInfo;
 }
 
-
+//这个函数应该是在当前帧中显示一些状态，例如是否跟踪丢失，词典是否处理完成等等
 void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 {
     stringstream s;
@@ -155,8 +158,9 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
     }
 
     int baseline=0;
-    cv::Size textSize = cv::getTextSize(s.str(),cv::FONT_HERSHEY_PLAIN,1,1,&baseline);
+    cv::Size textSize = cv::getTextSize(s.str(),cv::FONT_HERSHEY_PLAIN,1,1,&baseline);//获得一个字符串的宽度和高度： 
 
+    //将字符变成图像与我们相机得到的图像进行融合
     imText = cv::Mat(im.rows+textSize.height+10,im.cols,im.type());
     im.copyTo(imText.rowRange(0,im.rows).colRange(0,im.cols));
     imText.rowRange(im.rows,imText.rows) = cv::Mat::zeros(textSize.height+10,im.cols,im.type());
@@ -164,15 +168,17 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 
 }
 
+//这个函数只在track线程中被调用 搜索"//更新要显示的内容"就能得到在tracking中的调用位置
+//这个函数是用于更新要显示的变量
 void FrameDrawer::Update(Tracking *pTracker)
 {
     unique_lock<mutex> lock(mMutex);
-    pTracker->mImGray.copyTo(mIm);
-    mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;
+    pTracker->mImGray.copyTo(mIm);//获得当前帧的图像
+    mvCurrentKeys=pTracker->mCurrentFrame.mvKeys;//获得当前帧的特征点
     N = mvCurrentKeys.size();
     mvbVO = vector<bool>(N,false);
     mvbMap = vector<bool>(N,false);
-    mbOnlyTracking = pTracker->mbOnlyTracking;
+    mbOnlyTracking = pTracker->mbOnlyTracking;//是否是局部模式而不是slam模式
 
 
     if(pTracker->mLastProcessedState==Tracking::NOT_INITIALIZED)
@@ -184,13 +190,13 @@ void FrameDrawer::Update(Tracking *pTracker)
     {
         for(int i=0;i<N;i++)
         {
-            MapPoint* pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
+            MapPoint* pMP = pTracker->mCurrentFrame.mvpMapPoints[i];//当前帧对应的地图点
             if(pMP)
             {
-                if(!pTracker->mCurrentFrame.mvbOutlier[i])
+                if(!pTracker->mCurrentFrame.mvbOutlier[i])//当前帧特征点和track线程中参考关键帧地图点匹配的序号，内容是这个地图点是不是为异值点，如果是则为true
                 {
                     if(pMP->Observations()>0)
-                        mvbMap[i]=true;
+                        mvbMap[i]=true;//这个地图点被关键帧观测到过
                     else
                         mvbVO[i]=true;
                 }

@@ -52,20 +52,20 @@ public:
     void InsertKeyFrame(KeyFrame* pKF);
 
     // Thread Synch
-    void RequestStop();
+    void RequestStop();//mbStopRequested = true;mbAbortBA = true;
     void RequestReset();
     bool Stop();
     void Release();
-    bool isStopped();
-    bool stopRequested();
-    bool AcceptKeyFrames();
+    bool isStopped();//return mbStopped;
+    bool stopRequested();//return mbStopRequested;
+    bool AcceptKeyFrames();//return mbAcceptKeyFrames;
     void SetAcceptKeyFrames(bool flag);
     bool SetNotStop(bool flag);
 
-    void InterruptBA();
+    void InterruptBA();// mbAbortBA = true;
 
-    void RequestFinish();
-    bool isFinished();
+    void RequestFinish();//mbFinishRequested = true;
+    bool isFinished();// return mbFinished;
 
     int KeyframesInQueue(){
         unique_lock<std::mutex> lock(mMutexNewKFs);
@@ -87,40 +87,39 @@ protected:
 
     cv::Mat SkewSymmetricMatrix(const cv::Mat &v);
 
-    bool mbMonocular;
-
+    bool mbMonocular;//双目情况下是false
     void ResetIfRequested();
     bool mbResetRequested;
-    std::mutex mMutexReset;
+    std::mutex mMutexReset;//锁住的资源是mbResetRequested------------------------------------------------------------
 
     bool CheckFinish();
     void SetFinish();
-    bool mbFinishRequested;
-    bool mbFinished;
-    std::mutex mMutexFinish;
+    bool mbFinishRequested;//表示请求关闭localmapping这个线程 只在shutdown函数中被调用
+    bool mbFinished;//表示localmapping线程的状态，是关闭了还是没有被关闭
+    std::mutex mMutexFinish;//锁住的资源是mbFinishRequested和mbFinished----------------------------------------------
 
-    Map* mpMap;
+    Map* mpMap;//localmapping中的地图其实就是system中的地图 与tracking线程中的地图一样，都占用同样的存储空间
 
     LoopClosing* mpLoopCloser;
     Tracking* mpTracker;
 
-    std::list<KeyFrame*> mlNewKeyFrames;
+    std::list<KeyFrame*> mlNewKeyFrames;//新生成的传递给localmapping的关键帧
 
-    KeyFrame* mpCurrentKeyFrame;
+    KeyFrame* mpCurrentKeyFrame;//localmapping线程当前处理的关键帧
 
-    std::list<MapPoint*> mlpRecentAddedMapPoints;
+    std::list<MapPoint*> mlpRecentAddedMapPoints;//localmapping新加入的地图点-
+    bool mbAbortBA;//是否允许执行BA优化
+    std::mutex mMutexNewKFs;//锁住的资源是mlNewKeyFrames和mbAbortBA-------------------------------------------------
 
-    std::mutex mMutexNewKFs;
+  
 
-    bool mbAbortBA;
+    bool mbStopped;//用于指示localmapping这个线程是否已经停止运行了
+    bool mbStopRequested;//停止localmapping线程的请求，
+    bool mbNotStop;//应该是tracking线程要求localmapping线程停止的请求
+    std::mutex mMutexStop;//锁住的资源是mbStopRequested，mbStopped，mbNotStop--------------------------------------
 
-    bool mbStopped;
-    bool mbStopRequested;
-    bool mbNotStop;
-    std::mutex mMutexStop;
-
-    bool mbAcceptKeyFrames;
-    std::mutex mMutexAccept;
+    bool mbAcceptKeyFrames;//表示localmapping线程是否能接收关键帧，即当前的localmapping线程是否空闲
+    std::mutex mMutexAccept;//锁住的资源是mbAcceptKeyFrames---------------------------------------------------------
 };
 
 } //namespace ORB_SLAM

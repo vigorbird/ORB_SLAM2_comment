@@ -202,7 +202,7 @@ namespace g2o{
       vset.insert(it->second);
     return initializeOptimization(vset,level);
   }
-
+ //levelƒ¨»œ÷µ «0
   bool SparseOptimizer::initializeOptimization(HyperGraph::VertexSet& vset, int level){
     if (edges().size() == 0) {
       cerr << __PRETTY_FUNCTION__ << ": Attempt to initialize an empty graph" << endl;

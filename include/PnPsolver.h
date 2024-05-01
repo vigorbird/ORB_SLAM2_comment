@@ -125,20 +125,23 @@ class PnPsolver {
   void mat_to_quat(const double R[3][3], double q[4]);
 
 
-  double uc, vc, fu, fv;
+  double uc, vc, fu, fv;//相机内参
 
+  //pws应该是地图点在世界坐标系下的位置，三个为一组
+  //alphas是使用控制点表示参考点的系数，4个为一组
+  //us存储的是参考点在图像中的投影像素坐标，2个为一组
   double * pws, * us, * alphas, * pcs;
   int maximum_number_of_correspondences;
-  int number_of_correspondences;
+  int number_of_correspondences;//表示在计算epnp时一共有多少个参考点
 
-  double cws[4][3], ccs[4][3];
+  double cws[4][3], ccs[4][3];//cws存储的就是控制点在世界坐标系下的坐标
   double cws_determinant;
 
   vector<MapPoint*> mvpMapPointMatches;
 
   // 2D Points
   vector<cv::Point2f> mvP2D;
-  vector<float> mvSigma2;
+  vector<float> mvSigma2;//地图点在这一帧中的系数的平方,对应的是mvLevelSigma2数据变量
 
   // 3D Points
   vector<cv::Point3f> mvP3Dw;
@@ -150,8 +153,8 @@ class PnPsolver {
   double mRi[3][3];
   double mti[3];
   cv::Mat mTcwi;
-  vector<bool> mvbInliersi;
-  int mnInliersi;
+  vector<bool> mvbInliersi;//ransac迭代之后根据得到的模型计算哪些样本是inliner，保存这些inliner
+  int mnInliersi;//保存的应该是mvbInliersi变量中 inliner的个数
 
   // Current Ransac State
   int mnIterations;
@@ -174,9 +177,14 @@ class PnPsolver {
   double mRansacProb;
 
   // RANSAC min inliers
+  //适用于模型的最小inliner个数
   int mRansacMinInliers;
 
   // RANSAC max iterations
+  //当我们通过公式计算得到ransac最优迭代次数大于我们人为设定的迭代次数则这个参数等于人为设定的迭代次数
+  //只有人为设定的迭代次数大于公式计算得到的迭代次数时，这个参数才是公式计算得到的。
+  //这里作者为什么要这么做?是因为如果通过公式计算得到的迭代次数太大会浪费很多的时间
+  //默认设置是300
   int mRansacMaxIts;
 
   // RANSAC expected inliers/total ratio
@@ -186,9 +194,11 @@ class PnPsolver {
   float mRansacTh;
 
   // RANSAC Minimun Set used at each iteration
-  int mRansacMinSet;
+  int mRansacMinSet;//默认设置是4，即使用四对点计算epnp
 
   // Max square error associated with scale level. Max error = th*th*sigma(level)*sigma(level)
+  //根据程序的默认设置等于5.991*这个地图点在图像中的缩放比例的平方，默认缩放比例是1.2，这个地图点在第三层则为1.2*1.2
+  //根据默认设置这个参数中存储的只能是如下的比例系数5.991,5.991*1.2,5.991*1.2^2,5.991*1.2^3,5.991*1.2^4,
   vector<float> mvMaxError;
 
 };

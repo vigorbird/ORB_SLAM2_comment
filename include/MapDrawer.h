@@ -47,14 +47,14 @@ public:
 
 private:
 
-    float mKeyFrameSize;
-    float mKeyFrameLineWidth;
-    float mGraphLineWidth;
-    float mPointSize;
-    float mCameraSize;
-    float mCameraLineWidth;
+    float mKeyFrameSize;//默认设置是0.05
+    float mKeyFrameLineWidth;//默认设置是1
+    float mGraphLineWidth;//设置画的covisible图的线宽，默认参数是0.9
+    float mPointSize;//默认参数是2，栅格化点的直径
+    float mCameraSize;//默认参数是0.08
+    float mCameraLineWidth;//默认值是3
 
-    cv::Mat mCameraPose;
+    cv::Mat mCameraPose;//当前帧的位姿=Tcw
 
     std::mutex mMutexCamera;
 };

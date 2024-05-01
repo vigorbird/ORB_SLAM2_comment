@@ -1,0 +1,3 @@
+orb-slam使用了如下的库文件：opencv，eigen，pangolion，g2o和DBow。
+其中opencv，eigen和pangolin都是使用github上的源代码直接安装使用的，但是g2o和Dbow作者经过修改的，因此作者供了修改的源码。
+因此在cmake中还需要对g2o和Dbow的代码进行编译，然后得到链接库。而opencv，eigen，pangolion只需要find_package即可找到安装的链接库。

@@ -53,9 +53,9 @@ protected:
     void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
 
     // Info of the frame to be drawn
-    cv::Mat mIm;
+    cv::Mat mIm;//要绘制的图像
     int N;
-    vector<cv::KeyPoint> mvCurrentKeys;
+    vector<cv::KeyPoint> mvCurrentKeys;//要绘制的特征点
     vector<bool> mvbMap, mvbVO;
     bool mbOnlyTracking;
     int mnTracked, mnTrackedVO;

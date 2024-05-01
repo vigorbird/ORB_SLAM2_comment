@@ -66,9 +66,10 @@ private:
     Tracking* mpTracker;
 
     // 1/fps in ms
-    double mT;
-    float mImageWidth, mImageHeight;
+    double mT;// 1帧图像多少毫秒
+    float mImageWidth, mImageHeight;//输入图像的高和宽
 
+    //mViewpointX = 0；mViewpointY=-0.7；mViewpointZ=-1.8；mViewpointF=500
     float mViewpointX, mViewpointY, mViewpointZ, mViewpointF;
 
     bool CheckFinish();

@@ -52,8 +52,10 @@ public:
    * @param weighting weighting type
    * @param scoring scoring type
    */
-  TemplatedVocabulary(int k = 10, int L = 5, 
-    WeightingType weighting = TF_IDF, ScoringType scoring = L1_NORM);
+   //orbslam中使用的是这种初始化方式
+   //在此文件中搜索"默认初始化方式"
+   //此处的深度不考虑根节点
+  TemplatedVocabulary(int k = 10, int L = 5, WeightingType weighting = TF_IDF, ScoringType scoring = L1_NORM);
   
   /**
    * Creates the vocabulary by loading a file
@@ -142,6 +144,7 @@ public:
    * @param fv (out) feature vector of nodes and feature indexes
    * @param levelsup levels to go up the vocabulary tree to get the node index
    */
+   //transform函数
   virtual void transform(const std::vector<TDescriptor>& features,
     BowVector &v, FeatureVector &fv, int levelsup) const;
 
@@ -411,25 +414,26 @@ protected:
   int m_L;
   
   /// Weighting method
-  WeightingType m_weighting;
+  WeightingType m_weighting;//枚举变量
   
   /// Scoring method
-  ScoringType m_scoring;
+  ScoringType m_scoring;//枚举变量，用于控制m_scoring_object，
   
   /// Object for computing scores
-  GeneralScoring* m_scoring_object;
+  GeneralScoring* m_scoring_object;//orbslam2默认使用的是L1Scoring::score
   
   /// Tree nodes
   std::vector<Node> m_nodes;
   
   /// Words of the vocabulary (tree leaves)
   /// this condition holds: m_words[wid]->word_id == wid
-  std::vector<Node*> m_words;
+  std::vector<Node*> m_words;//最底层的节点是单词
   
 };
 
 // --------------------------------------------------------------------------
 
+//默认初始化方式
 template<class TDescriptor, class F>
 TemplatedVocabulary<TDescriptor,F>::TemplatedVocabulary
   (int k, int L, WeightingType weighting, ScoringType scoring)
@@ -837,7 +841,7 @@ void TemplatedVocabulary<TDescriptor,F>::initiateClustersKMpp(
   // Algorithm:
   // 1. Choose one center uniformly at random from among the data points.
   // 2. For each data point x, compute D(x), the distance between x and the nearest 
-  //    center that has already been chosen.
+  //    center that has already been chosen.2
   // 3. Add one new data point as a center. Each point x is chosen with probability 
   //    proportional to D(x)^2.
   // 4. Repeat Steps 2 and 3 until k centers have been chosen.
@@ -1122,7 +1126,9 @@ void TemplatedVocabulary<TDescriptor,F>::transform(
 }
 
 // --------------------------------------------------------------------------
-
+//最终为了计算得到v和fv
+//v中存储的是这张图像每个单词对应的得分
+//fv中存储的是父节点中所有的特征点序号
 template<class TDescriptor, class F> 
 void TemplatedVocabulary<TDescriptor,F>::transform(
   const std::vector<TDescriptor>& features,
@@ -1142,22 +1148,26 @@ void TemplatedVocabulary<TDescriptor,F>::transform(
   
   typename vector<TDescriptor>::const_iterator fit;
   
-  if(m_weighting == TF || m_weighting == TF_IDF)
+  if(m_weighting == TF || m_weighting == TF_IDF)//默认进入这个条件
   {
     unsigned int i_feature = 0;
+	//遍历图像所有特征点的描述子
     for(fit = features.begin(); fit < features.end(); ++fit, ++i_feature)
     {
       WordId id;
       NodeId nid;
       WordValue w; 
       // w is the idf value if TF_IDF, 1 if TF
-      
-      transform(*fit, id, w, &nid, levelsup);
+      //输入的是一张图像上的某个描述子，将其遍历词典，然后计算得到属于哪个单词=id，和这个单词在词典中对应的权重=w，还有父节点的序号=nid
+      transform(*fit, id, w, &nid, levelsup);//代码在下面
       
       if(w > 0) // not stopped
       { 
+      	//Adds a value to a word value existing in the vector, or creates a new
+	 	//word with the given value
         v.addWeight(id, w);
-        fv.addFeature(nid, i_feature);
+		//搜索范围大小是根据 level up 来确定的， level up 值越大，搜索范围越 广，速度越慢；
+        fv.addFeature(nid, i_feature);//FeatureVector 主要用于不同图像特征点快速匹配，加加速几何关系验证
       }
     }
     
@@ -1199,7 +1209,7 @@ template<class TDescriptor, class F>
 inline double TemplatedVocabulary<TDescriptor,F>::score
   (const BowVector &v1, const BowVector &v2) const
 {
-  return m_scoring_object->score(v1, v2);
+  return m_scoring_object->score(v1, v2);//用于计算单词向量之间的距离，orblslam2默认使用的是L1Scoring::score
 }
 
 // --------------------------------------------------------------------------
@@ -1213,7 +1223,8 @@ void TemplatedVocabulary<TDescriptor,F>::transform
 }
 
 // --------------------------------------------------------------------------
-
+//levelsup = 4 距离叶子节点深度为levelsup的节点
+//输入的是一张图像上的某个描述子，将其遍历词典，然后计算得到属于哪个单词，和这个单词在词典中对应的权重，还有父节点的序号
 template<class TDescriptor, class F>
 void TemplatedVocabulary<TDescriptor,F>::transform(const TDescriptor &feature, 
   WordId &word_id, WordValue &weight, NodeId *nid, int levelsup) const
@@ -1234,7 +1245,9 @@ void TemplatedVocabulary<TDescriptor,F>::transform(const TDescriptor &feature,
     ++current_level;
     nodes = m_nodes[final_id].children;
     final_id = nodes[0];
- 
+
+	//搜索 “int FORB::distance”
+	//使用二进制与或的方法快速计算得到两个描述子的距离
     double best_d = F::distance(feature, m_nodes[final_id].descriptor);
 
     for(nit = nodes.begin() + 1; nit != nodes.end(); ++nit)
@@ -1251,7 +1264,7 @@ void TemplatedVocabulary<TDescriptor,F>::transform(const TDescriptor &feature,
     if(nid != NULL && current_level == nid_level)
       *nid = final_id;
     
-  } while( !m_nodes[final_id].isLeaf() );
+  } while( !m_nodes[final_id].isLeaf() );//不是叶子节点继续循环
 
   // turn node id into word id
   word_id = m_nodes[final_id].word_id;
@@ -1333,7 +1346,8 @@ int TemplatedVocabulary<TDescriptor,F>::stopWords(double minWeight)
 }
 
 // --------------------------------------------------------------------------
-
+//DBoW2::FORB::TDescriptor = TDescriptor
+//F = DBoW2::FORB
 template<class TDescriptor, class F>
 bool TemplatedVocabulary<TDescriptor,F>::loadFromTextFile(const std::string &filename)
 {
@@ -1346,37 +1360,39 @@ bool TemplatedVocabulary<TDescriptor,F>::loadFromTextFile(const std::string &fil
     m_words.clear();
     m_nodes.clear();
 
+	//读取第一行数据
     string s;
     getline(f,s);
     stringstream ss;
     ss << s;
-    ss >> m_k;
-    ss >> m_L;
+    ss >> m_k;// = 10
+    ss >> m_L;// = 6
     int n1, n2;
-    ss >> n1;
-    ss >> n2;
+    ss >> n1;// = 0
+    ss >> n2;// = 0
 
     if(m_k<0 || m_k>20 || m_L<1 || m_L>10 || n1<0 || n1>5 || n2<0 || n2>3)
     {
         std::cerr << "Vocabulary loading failure: This is not a correct text file!" << endl;
-	return false;
+		return false;
     }
-    
-    m_scoring = (ScoringType)n1;
-    m_weighting = (WeightingType)n2;
+
+	//非常重要
+    m_scoring = (ScoringType)n1;//m_scoring = L1
+    m_weighting = (WeightingType)n2;//WeightingType = TF_IDF
     createScoringObject();
 
     // nodes
-    int expected_nodes =
-    (int)((pow((double)m_k, (double)m_L + 1) - 1)/(m_k - 1));
+    int expected_nodes = (int)((pow((double)m_k, (double)m_L + 1) - 1)/(m_k - 1));
     m_nodes.reserve(expected_nodes);
-
+	
     m_words.reserve(pow((double)m_k, (double)m_L + 1));
 
     m_nodes.resize(1);
     m_nodes[0].id = 0;
     while(!f.eof())
     {
+    	
         string snode;
         getline(f,snode);
         stringstream ssnode;
@@ -1384,8 +1400,10 @@ bool TemplatedVocabulary<TDescriptor,F>::loadFromTextFile(const std::string &fil
 
         int nid = m_nodes.size();
         m_nodes.resize(m_nodes.size()+1);
-	m_nodes[nid].id = nid;
-	
+		m_nodes[nid].id = nid;
+
+		//第一个元素是父节点的序号
+    	//第二个元素判断是否为叶子节点
         int pid ;
         ssnode >> pid;
         m_nodes[nid].parent = pid;
@@ -1395,14 +1413,15 @@ bool TemplatedVocabulary<TDescriptor,F>::loadFromTextFile(const std::string &fil
         ssnode >> nIsLeaf;
 
         stringstream ssd;
-        for(int iD=0;iD<F::L;iD++)
+        for(int iD=0;iD<F::L;iD++)//默认F::L=32
         {
             string sElement;
             ssnode >> sElement;
             ssd << sElement << " ";
-	}
+		}
+		//全局搜索"FORB::fromString(FORB::TDescriptor &a, const std::string &s)"
         F::fromString(m_nodes[nid].descriptor, ssd.str());
-
+		//每一行最后一个元素为节点的权重，只有叶子节点的权重不等于0
         ssnode >> m_nodes[nid].weight;
 
         if(nIsLeaf>0)

@@ -67,55 +67,58 @@ protected:
     KeyFrame* mpKF1;
     KeyFrame* mpKF2;
 
-    std::vector<cv::Mat> mvX3Dc1;
-    std::vector<cv::Mat> mvX3Dc2;
-    std::vector<MapPoint*> mvpMapPoints1;
-    std::vector<MapPoint*> mvpMapPoints2;
-    std::vector<MapPoint*> mvpMatches12;
-    std::vector<size_t> mvnIndices1;
+    std::vector<cv::Mat> mvX3Dc1;//当前帧地图点在当前帧坐标系下的坐标
+    std::vector<cv::Mat> mvX3Dc2;//当前帧和闭环候选关键帧已经匹配地图点在闭环候选关键帧坐标系下的坐标
+    std::vector<MapPoint*> mvpMapPoints1;//当前帧的地图点
+    std::vector<MapPoint*> mvpMapPoints2;//当前帧和闭环候选关键帧已经匹配的地图点
+    std::vector<MapPoint*> mvpMatches12;//当前帧和闭环候选关键帧已经匹配的地图点
+    std::vector<size_t> mvnIndices1;//里面存储的是已经匹配地图点的序号
     std::vector<size_t> mvSigmaSquare1;
     std::vector<size_t> mvSigmaSquare2;
-    std::vector<size_t> mvnMaxError1;
+    std::vector<size_t> mvnMaxError1;//用于判定样本是否为inliner，对应ransac参数中的t，但是这个参数根据特征点所在金字塔层数不同，其阈值也不同
     std::vector<size_t> mvnMaxError2;
 
     int N;
     int mN1;
 
     // Current Estimation
-    cv::Mat mR12i;
-    cv::Mat mt12i;
-    float ms12i;
-    cv::Mat mT12i;
-    cv::Mat mT21i;
-    std::vector<bool> mvbInliersi;
-    int mnInliersi;
+    cv::Mat mR12i;//闭环候选帧相对当前帧的旋转矩阵
+    cv::Mat mt12i;//闭环候选帧相对当前帧的位移矩阵
+    float ms12i;//尺度
+    cv::Mat mT12i;//闭环候选帧相对当前帧的位姿变换矩阵
+    cv::Mat mT21i;//当前帧相对于闭环候选帧的位姿变换矩阵
+    std::vector<bool> mvbInliersi;//标识哪些地图点是inliner，序号对应地图点的序号，值对应是否为inliner
+    int mnInliersi;//对应ransac中的参数d
 
     // Current Ransac State
-    int mnIterations;
+    int mnIterations;//当前ransac算法迭代的总次数
     std::vector<bool> mvbBestInliers;
-    int mnBestInliers;
+    int mnBestInliers;//当前使得总样本为最多inliner的个数
     cv::Mat mBestT12;
-    cv::Mat mBestRotation;
-    cv::Mat mBestTranslation;
+    cv::Mat mBestRotation;//经过ransac过程后两帧相对最优旋转矩阵
+    cv::Mat mBestTranslation;//经过ransac过程后两帧相对最优位移矩阵
     float mBestScale;
 
     // Scale is fixed to 1 in the stereo/RGBD case
     bool mbFixScale;
 
     // Indices for random selection
-    std::vector<size_t> mvAllIndices;
+    std::vector<size_t> mvAllIndices;//里面存储的是已经匹配地图点的序号
 
     // Projections
-    std::vector<cv::Mat> mvP1im1;
-    std::vector<cv::Mat> mvP2im2;
+    std::vector<cv::Mat> mvP1im1;//当前帧地图点在当前帧图像中的像素坐标
+    std::vector<cv::Mat> mvP2im2;//已经匹配的地图点在闭环候选关键帧图像中的像素坐标
 
     // RANSAC probability
+    //对应ransac参数p=0.99
     double mRansacProb;
 
     // RANSAC min inliers
+    //对应ransac所有样本中inliner可能的数量=20
     int mRansacMinInliers;
 
     // RANSAC max iterations
+    //对应ransac参数k=300
     int mRansacMaxIts;
 
     // Threshold inlier/outlier. e = dist(Pi,T_ij*Pj)^2 < 5.991*mSigma2

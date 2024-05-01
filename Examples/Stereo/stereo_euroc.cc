@@ -45,7 +45,8 @@ int main(int argc, char **argv)
     // Retrieve paths to images
     vector<string> vstrImageLeft;
     vector<string> vstrImageRight;
-    vector<double> vTimeStamp;
+    vector<double> vTimeStamp;//时间戳单位是秒
+    //读取图像左右图像和时间戳，其中时间戳单位是秒
     LoadImages(string(argv[3]), string(argv[4]), string(argv[5]), vstrImageLeft, vstrImageRight, vTimeStamp);
 
     if(vstrImageLeft.empty() || vstrImageRight.empty())
@@ -61,6 +62,8 @@ int main(int argc, char **argv)
     }
 
     // Read rectification parameters
+    //FileStorage专门用于读取XML/YAML文件
+    //读取yaml文件，相机内参等参数
     cv::FileStorage fsSettings(argv[2], cv::FileStorage::READ);
     if(!fsSettings.isOpened())
     {
@@ -69,8 +72,8 @@ int main(int argc, char **argv)
     }
 
     cv::Mat K_l, K_r, P_l, P_r, R_l, R_r, D_l, D_r;
-    fsSettings["LEFT.K"] >> K_l;
-    fsSettings["RIGHT.K"] >> K_r;
+    fsSettings["LEFT.K"] >> K_l;//左侧相机内参
+    fsSettings["RIGHT.K"] >> K_r;//右侧相机内参
 
     fsSettings["LEFT.P"] >> P_l;
     fsSettings["RIGHT.P"] >> P_r;
@@ -91,31 +94,42 @@ int main(int argc, char **argv)
     {
         cerr << "ERROR: Calibration parameters to rectify stereo are missing!" << endl;
         return -1;
+		
     }
 
     cv::Mat M1l,M2l,M1r,M2r;
+    //用于摄像机校正映射，输出结果是X/Y坐标重映射参数,是函数的最后两个参数;
+    //第一个参数为摄像机平行校正前的内参；第二个参数是摄像机的畸变校正系数；
+    //第三个参数是左右相机相对的旋转矩阵；第四个参数是双目校正后的相机内参
     cv::initUndistortRectifyMap(K_l,D_l,R_l,P_l.rowRange(0,3).colRange(0,3),cv::Size(cols_l,rows_l),CV_32F,M1l,M2l);
     cv::initUndistortRectifyMap(K_r,D_r,R_r,P_r.rowRange(0,3).colRange(0,3),cv::Size(cols_r,rows_r),CV_32F,M1r,M2r);
 
-
+   
     const int nImages = vstrImageLeft.size();
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
+    //输入的两个参数是:回环检测的单词表和相机参数!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //第四个参数是否启动可视化线程
+    //用于设置和启动回环线程、localmap线程和可视化线程
     ORB_SLAM2::System SLAM(argv[1],argv[2],ORB_SLAM2::System::STEREO,true);
 
     // Vector for tracking time statistics
+    //记录tracking线程运行的时间
     vector<float> vTimesTrack;
+
+	
     vTimesTrack.resize(nImages);
 
     cout << endl << "-------" << endl;
     cout << "Start processing sequence ..." << endl;
     cout << "Images in the sequence: " << nImages << endl << endl;
 
-    // Main loop
+    // Main loop!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     cv::Mat imLeft, imRight, imLeftRect, imRightRect;
     for(int ni=0; ni<nImages; ni++)
     {
         // Read left and right images from file
+        //读取png图像
         imLeft = cv::imread(vstrImageLeft[ni],CV_LOAD_IMAGE_UNCHANGED);
         imRight = cv::imread(vstrImageRight[ni],CV_LOAD_IMAGE_UNCHANGED);
 
@@ -132,10 +146,11 @@ int main(int argc, char **argv)
                  << string(vstrImageRight[ni]) << endl;
             return 1;
         }
-
+        //将原始图像经过校正后保存到imLeftRect和imRightRect
         cv::remap(imLeft,imLeftRect,M1l,M2l,cv::INTER_LINEAR);
         cv::remap(imRight,imRightRect,M1r,M2r,cv::INTER_LINEAR);
 
+	//图像对应的时间戳
         double tframe = vTimeStamp[ni];
 
 
@@ -146,6 +161,8 @@ int main(int argc, char **argv)
 #endif
 
         // Pass the images to the SLAM system
+        //将校正过的图像传送给orb2算法!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        //开始执行tracking线程，并计算tracking线程执行的时间
         SLAM.TrackStereo(imLeftRect,imRightRect,tframe);
 
 #ifdef COMPILEDWITHC11
@@ -154,8 +171,9 @@ int main(int argc, char **argv)
         std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
 #endif
 
-        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
+        double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();//tracking线程执行的时间
 
+	//vTimesTrack存储的是orb算法处理每对图像的时间，单位是秒
         vTimesTrack[ni]=ttrack;
 
         // Wait to load the next frame
@@ -165,6 +183,7 @@ int main(int argc, char **argv)
         else if(ni>0)
             T = tframe-vTimeStamp[ni-1];
 
+	//如果orb算法处理图像的时间小于图像的采样周期,则让系统休眠，单位是微妙
         if(ttrack<T)
             usleep((T-ttrack)*1e6);
     }

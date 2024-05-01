@@ -94,7 +94,7 @@ public:
 
     // Current Frame
     Frame mCurrentFrame;
-    cv::Mat mImGray;
+    cv::Mat mImGray;//这个是当前tracking线程读取的图像
 
     // Initialization Variables (Monocular)
     std::vector<int> mvIniLastMatches;
@@ -105,10 +105,10 @@ public:
 
     // Lists used to recover the full camera trajectory at the end of the execution.
     // Basically we store the reference keyframe for each frame and its relative transformation
-    list<cv::Mat> mlRelativeFramePoses;
-    list<KeyFrame*> mlpReferences;
-    list<double> mlFrameTimes;
-    list<bool> mlbLost;
+    list<cv::Mat> mlRelativeFramePoses;//这里面存储的是各个位置的帧相对于参考帧的位姿变换，只在track线程中被更新，例如此变量的第三个变量就是对应第三帧图像相对于其参考关键帧的位姿变化
+    list<KeyFrame*> mlpReferences;//用于存储参考关键帧，只在track线程中被更新，例如此变量的第3个变量就是对应第三帧图像的参考关键帧
+    list<double> mlFrameTimes;//所有帧的时间戳
+    list<bool> mlbLost;//存储的是各个帧是否丢失的状态，如果没有丢失则为false
 
     // True if local mapping is deactivated and we are performing only localization
     bool mbOnlyTracking;
@@ -159,16 +159,16 @@ protected:
     ORBextractor* mpIniORBextractor;
 
     //BoW
-    ORBVocabulary* mpORBVocabulary;
-    KeyFrameDatabase* mpKeyFrameDB;
+    ORBVocabulary* mpORBVocabulary;//初始化时生成的词典数据结构
+    KeyFrameDatabase* mpKeyFrameDB;//这里一定要注意，关键帧数据库一共存在于三种不同的数据结构中:tracking，loopclosing和关键帧中
 
     // Initalization (only for monocular)
     Initializer* mpInitializer;
 
     //Local Map
-    KeyFrame* mpReferenceKF;
-    std::vector<KeyFrame*> mvpLocalKeyFrames;
-    std::vector<MapPoint*> mvpLocalMapPoints;
+    KeyFrame* mpReferenceKF;//与当前帧共视最多的关键帧
+    std::vector<KeyFrame*> mvpLocalKeyFrames;//局部关键帧=与当前帧共视的关键帧+与共视关键帧相关的前十名的共视关键帧
+    std::vector<MapPoint*> mvpLocalMapPoints;//局部地图点=局部关键帧看到的地图点
     
     // System
     System* mpSystem;
@@ -182,23 +182,25 @@ protected:
     Map* mpMap;
 
     //Calibration matrix
-    cv::Mat mK;
-    cv::Mat mDistCoef;
-    float mbf;
+    cv::Mat mK;//内参矩阵,对应的是yaml配置文件中的Camera.fx...
+    cv::Mat mDistCoef;//校正矩阵,对应的是配置文件中的Camera.k1...,设置的值是0
+    float mbf;//fx*基线,对应的是配置文件中的Camera.bf
 
     //New KeyFrame rules (according to fps)
-    int mMinFrames;
-    int mMaxFrames;
+    int mMinFrames;//默认值是0
+    int mMaxFrames;//由fps赋值,对应的是配置文件中的Camera.fps
 
     // Threshold close/far points
     // Points seen as close by the stereo/RGBD sensor are considered reliable
     // and inserted from just one frame. Far points requiere a match in two keyframes.
+    //用于区分远近特征点的阈值，默认参数=35*基线
     float mThDepth;
 
     // For RGB-D inputs only. For some datasets (e.g. TUM) the depthmap values are scaled.
     float mDepthMapFactor;
 
     //Current matches in frame
+    //经过优化后剔除过异值地图点后有效地图点的数量
     int mnMatchesInliers;
 
     //Last Frame, KeyFrame and Relocalisation Info
@@ -211,9 +213,9 @@ protected:
     cv::Mat mVelocity;
 
     //Color order (true RGB, false BGR, ignored if grayscale)
-    bool mbRGB;
+    bool mbRGB;//对应的是配置文件中的Camera.RGB参数
 
-    list<MapPoint*> mlpTemporalPoints;
+    list<MapPoint*> mlpTemporalPoints;//存储的是上一帧中距离相机位姿最近的前100个地图点
 };
 
 } //namespace ORB_SLAM

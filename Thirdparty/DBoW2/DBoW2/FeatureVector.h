@@ -18,6 +18,8 @@
 namespace DBoW2 {
 
 /// Vector of nodes with indexes of local features
+//std::vector<unsigned int> = 特征点序号
+//NodeId = 节点序号
 class FeatureVector: 
   public std::map<NodeId, std::vector<unsigned int> >
 {

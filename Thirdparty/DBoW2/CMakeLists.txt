@@ -1,3 +1,4 @@
+#DBoW2的cmake其实和源码的cmake不同：https://github.com/dorian3d/DBoW2/blob/master/CMakeLists.txt
 cmake_minimum_required(VERSION 2.8)
 project(DBoW2)
 

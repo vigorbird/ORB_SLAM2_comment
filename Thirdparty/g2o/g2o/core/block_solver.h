@@ -147,7 +147,7 @@ namespace g2o {
 
       void deallocate();
 
-      SparseBlockMatrix<PoseMatrixType>* _Hpp;
+      SparseBlockMatrix<PoseMatrixType>* _Hpp;//作者对g2o这里的源码做了修改
       SparseBlockMatrix<LandmarkMatrixType>* _Hll;
       SparseBlockMatrix<PoseLandmarkMatrixType>* _Hpl;
 
@@ -179,7 +179,7 @@ namespace g2o {
   //variable size solver
   typedef BlockSolver< BlockSolverTraits<Eigen::Dynamic, Eigen::Dynamic> > BlockSolverX;
   // solver for BA/3D SLAM
-  typedef BlockSolver< BlockSolverTraits<6, 3> > BlockSolver_6_3;  
+  typedef BlockSolver< BlockSolverTraits<6, 3> > BlockSolver_6_3;  //两个顶点的维度是6和3，一个表示位姿一个表示相机的位置，这个是作者对g2o做出的修改增加的新的数据类型
   // solver fo BA with scale
   typedef BlockSolver< BlockSolverTraits<7, 3> > BlockSolver_7_3;  
   // 2Dof landmarks 3Dof poses

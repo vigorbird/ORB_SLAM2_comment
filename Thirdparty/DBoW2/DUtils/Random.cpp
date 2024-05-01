@@ -46,7 +46,7 @@ void DUtils::Random::SeedRandOnce(int seed)
 
 int DUtils::Random::RandomInt(int min, int max){
 	int d = max - min + 1;
-	return int(((double)rand()/((double)RAND_MAX + 1.0)) * d) + min;
+	return int(((double)rand()/((double)RAND_MAX + 1.0)) * d) + min;//RAND_MAX =伪随机数生成函数 rand 所能返回的最大数值
 }
 
 // ---------------------------------------------------------------------------

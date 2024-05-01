@@ -1,3 +1,4 @@
+#g2o的cmake其实和源码的cmake不同：https://github.com/RainerKuemmerle/g2o/blob/master/CMakeLists.txt
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 SET(CMAKE_LEGACY_CYGWIN_WIN32 0)
 

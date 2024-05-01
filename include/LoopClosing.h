@@ -46,8 +46,9 @@ class LoopClosing
 public:
 
     typedef pair<set<KeyFrame*>,int> ConsistentGroup;    
-    typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
-        Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
+    //KeyFrameAndPose数据结构其实就是关键帧+Sim3组成的map，后面的东西表示内存对其
+    //第二个元素sim3表示这个关键帧的位姿
+    typedef map<  KeyFrame*,g2o::Sim3,std::less<KeyFrame*>, Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3>>  > KeyFrameAndPose;
 
 public:
 
@@ -96,54 +97,58 @@ protected:
 
     void ResetIfRequested();
     bool mbResetRequested;
-    std::mutex mMutexReset;
+	long unsigned int mLastLoopKFid;
+	std::list<KeyFrame*> mlpLoopKeyFrameQueue;//这个是经过localmapping线程提炼出的关键帧
+    std::mutex mMutexReset;//锁住的资源是mbResetRequested，mLastLoopKFid和mlpLoopKeyFrameQueue------------------------------------
 
     bool CheckFinish();
     void SetFinish();
     bool mbFinishRequested;
     bool mbFinished;
-    std::mutex mMutexFinish;
+    std::mutex mMutexFinish;//锁住的资源是mbFinishRequested和mbFinished-------------------------------------------------------
 
-    Map* mpMap;
+    Map* mpMap;//回环检测中的地图与tracking线程的地图和localmapping 中的地图一样，占用同样的数据空间
     Tracking* mpTracker;
 
-    KeyFrameDatabase* mpKeyFrameDB;
+    KeyFrameDatabase* mpKeyFrameDB;//我感觉这里存储的应该是从localmap线程中传来的关键帧
     ORBVocabulary* mpORBVocabulary;
 
     LocalMapping *mpLocalMapper;
 
-    std::list<KeyFrame*> mlpLoopKeyFrameQueue;
-
-    std::mutex mMutexLoopQueue;
+    
+    std::mutex mMutexLoopQueue;//锁住的资源是mlpLoopKeyFrameQueue
 
     // Loop detector parameters
+    //默认值是3
     float mnCovisibilityConsistencyTh;
 
     // Loop detector variables
-    KeyFrame* mpCurrentKF;
-    KeyFrame* mpMatchedKF;
-    std::vector<ConsistentGroup> mvConsistentGroups;
-    std::vector<KeyFrame*> mvpEnoughConsistentCandidates;
-    std::vector<KeyFrame*> mvpCurrentConnectedKFs;
-    std::vector<MapPoint*> mvpCurrentMatchedPoints;
-    std::vector<MapPoint*> mvpLoopMapPoints;
-    cv::Mat mScw;
-    g2o::Sim3 mg2oScw;
+    KeyFrame* mpCurrentKF;//当前关键帧，用于匹配其他闭环候选帧
+    KeyFrame* mpMatchedKF;//存储的是与当前关键帧相匹配的最优闭环候选帧
+    std::vector<ConsistentGroup> mvConsistentGroups;//详见算法实现文档
+    std::vector<KeyFrame*> mvpEnoughConsistentCandidates;//存储满足连续性的回环检测候选帧
+    std::vector<KeyFrame*> mvpCurrentConnectedKFs;//存储的是当前关键帧的共视帧+当前关键帧
+    std::vector<MapPoint*> mvpCurrentMatchedPoints;//序号是当前关键帧特征点的序号，内容是最优闭环候选帧的共视帧所看到的地图点。
+    std::vector<MapPoint*> mvpLoopMapPoints;//最优闭环候选关键帧的共视帧+最优闭环候选关键帧看到的地图点，没有经过回环融合调整过位姿
+   
+    cv::Mat mScw;//当前帧在世界坐标系下的位姿 opencv数据格式
+    g2o::Sim3 mg2oScw;//当前帧在世界坐标系下的位姿，g2o数据格式
 
-    long unsigned int mLastLoopKFid;
+    
 
     // Variables related to Global Bundle Adjustment
-    bool mbRunningGBA;
-    bool mbFinishedGBA;
-    bool mbStopGBA;
-    std::mutex mMutexGBA;
-    std::thread* mpThreadGBA;
+    bool mbRunningGBA;//全局优化是否在执行
+    bool mbFinishedGBA;//表示全局优化已经结束了
+    bool mbStopGBA;//是否停止全局优化
+    std::mutex mMutexGBA;//锁住的资源是mbStopGBA---------------------------------------------------------------------------------
+    std::thread* mpThreadGBA;//这个是loopclosing线程中用于开启全局优化的线程
 
     // Fix scale in the stereo/RGB-D case
+    //在双目情况下是true，表示是否尺度是确定的
     bool mbFixScale;
 
 
-    bool mnFullBAIdx;
+    bool mnFullBAIdx;//表示检测到了几次回环
 };
 
 } //namespace ORB_SLAM

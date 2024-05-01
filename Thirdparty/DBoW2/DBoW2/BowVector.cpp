@@ -30,12 +30,14 @@ BowVector::~BowVector(void)
 }
 
 // --------------------------------------------------------------------------
-
+//BowVector继承std::map<WordId, WordValue>
+//如果能够找到
 void BowVector::addWeight(WordId id, WordValue v)
 {
+  //找到 第一个大于或者等于某个元素的位置，如果找得到，返回相应的迭代器，否则，返回范围中的尾迭代器。
   BowVector::iterator vit = this->lower_bound(id);
   
-  if(vit != this->end() && !(this->key_comp()(id, vit->first)))
+  if(vit != this->end() && !(this->key_comp()(id, vit->first)))//如果第一个元素较小并且应在第二个元素之前，则返回true，否则将返回false。
   {
     vit->second += v;
   }

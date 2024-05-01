@@ -36,10 +36,10 @@ public:
 
     void DivideNode(ExtractorNode &n1, ExtractorNode &n2, ExtractorNode &n3, ExtractorNode &n4);
 
-    std::vector<cv::KeyPoint> vKeys;
+    std::vector<cv::KeyPoint> vKeys;//归属于这个节点的特征点
     cv::Point2i UL, UR, BL, BR;
     std::list<ExtractorNode>::iterator lit;
-    bool bNoMore;
+    bool bNoMore;//表示这个节点是否还需要进行再次划分
 };
 
 class ORBextractor
@@ -82,7 +82,7 @@ public:
         return mvInvLevelSigma2;
     }
 
-    std::vector<cv::Mat> mvImagePyramid;
+    std::vector<cv::Mat> mvImagePyramid;//存储的是不同层金字塔中的图像，这里的图像不包含边界
 
 protected:
 
@@ -92,22 +92,21 @@ protected:
                                            const int &maxX, const int &minY, const int &maxY, const int &nFeatures, const int &level);
 
     void ComputeKeyPointsOld(std::vector<std::vector<cv::KeyPoint> >& allKeypoints);
-    std::vector<cv::Point> pattern;
-
-    int nfeatures;
+    std::vector<cv::Point> pattern;//存储的其实就是bit_pattern_31_变量中的点对，用于brief描述子。bit_pattern_31_共256个点对，则pattern中就是512个点。
+    int nfeatures;//作者设置的是1200
     double scaleFactor;
-    int nlevels;
-    int iniThFAST;
-    int minThFAST;
+    int nlevels;//金子塔的层数
+    int iniThFAST;//作者设置的是20
+    int minThFAST;//作者设置的是7
 
-    std::vector<int> mnFeaturesPerLevel;
+    std::vector<int> mnFeaturesPerLevel;//存储的是每层金字塔需要检测出来的特征点的个数,这里计算的方法与opencv相同
 
-    std::vector<int> umax;
+    std::vector<int> umax;//每个特征点圆邻域的位置信息  
 
-    std::vector<float> mvScaleFactor;
-    std::vector<float> mvInvScaleFactor;    
-    std::vector<float> mvLevelSigma2;
-    std::vector<float> mvInvLevelSigma2;
+    std::vector<float> mvScaleFactor;//每个金字塔的缩放比例,比如说图形要缩小2倍一共4层，则保存的就是[1,2,4,8]
+    std::vector<float> mvInvScaleFactor;  //mvScaleFactor的倒数,保存的是[1,1/2,1/4,1/8]
+    std::vector<float> mvLevelSigma2;//是mvScaleFactor的平方,保存的是[1,2*2,4*4,8*8]
+    std::vector<float> mvInvLevelSigma2;//是mvLevelSigma2的倒数，保存的是[1,1/(2*2),1/(4*4),1/(8*8)]
 };
 
 } //namespace ORB_SLAM

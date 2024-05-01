@@ -109,14 +109,14 @@ public:
     double mTimeStamp;
 
     // Calibration matrix and OpenCV distortion parameters.
-    cv::Mat mK;
+    cv::Mat mK;//摄像机矩阵
     static float fx;
     static float fy;
     static float cx;
     static float cy;
-    static float invfx;
+    static float invfx;//fx的倒数
     static float invfy;
-    cv::Mat mDistCoef;
+    cv::Mat mDistCoef;//对应的是配置文件中的Camera.k1...,设置的值是0
 
     // Stereo baseline multiplied by fx.
     float mbf;
@@ -134,33 +134,40 @@ public:
     // Vector of keypoints (original for visualization) and undistorted (actually used by the system).
     // In the stereo case, mvKeysUn is redundant as images must be rectified.
     // In the RGB-D case, RGB images can be distorted.
+    //mvKeys是左图像的特征点=mvKeysUn，mvKeysRight是右图像的特征点
+    //如果你输入的图像是校正过的图像则mvKeysUn = mvKeys；
     std::vector<cv::KeyPoint> mvKeys, mvKeysRight;
     std::vector<cv::KeyPoint> mvKeysUn;
 
     // Corresponding stereo coordinate and depth for each keypoint.
     // "Monocular" keypoints have a negative value.
-    std::vector<float> mvuRight;
-    std::vector<float> mvDepth;
+    std::vector<float> mvuRight;//序号是左特征点的序号，内容是与左图像特征点最优匹配的右图像的特征点u轴坐标，如果双目匹配失败则为-1
+    std::vector<float> mvDepth;//序号是左特征点的序号，内容是特征点深度信息(以左目为基准)，如果双目匹配失败则为-1
 
     // Bag of Words Vector structures.
-    DBoW2::BowVector mBowVec;
-    DBoW2::FeatureVector mFeatVec;
+    DBoW2::BowVector mBowVec;//即是分类树中leaf的数值与权重 
+    DBoW2::FeatureVector mFeatVec;//每个单词存储的特征点序号
 
     // ORB descriptor, each row associated to a keypoint.
+    //mDescriptors是左图像的描述子，mDescriptorsRight是右图像的描述子
+    //mvKeys变量中特征点对应的描述子
     cv::Mat mDescriptors, mDescriptorsRight;
 
     // MapPoints associated to keypoints, NULL pointer if no association.
+    //序号是特征点在当前帧左图像的序号，内容是对应的地图点
     std::vector<MapPoint*> mvpMapPoints;
 
     // Flag to identify outlier associations.
+    //序号是当前帧特征点和track线程中参考关键帧地图点匹配的序号，内容是这个地图点是不是为异值点，如果是则为true
     std::vector<bool> mvbOutlier;
 
     // Keypoints are assigned to cells in a grid to reduce matching complexity when projecting MapPoints.
-    static float mfGridElementWidthInv;
-    static float mfGridElementHeightInv;
-    std::vector<std::size_t> mGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
+    static float mfGridElementWidthInv;//一个grid在列上占用多少个像素
+    static float mfGridElementHeightInv;//一个grid在行上占用多少个像素
+    std::vector<std::size_t> mGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];//序号是grid中的坐标，内容是左图像中这个grid中所有特征点的序号
 
     // Camera pose.
+    //世界坐标系到相机坐标的位姿变换
     cv::Mat mTcw;
 
     // Current and Next Frame id.
@@ -171,13 +178,13 @@ public:
     KeyFrame* mpReferenceKF;
 
     // Scale pyramid info.
-    int mnScaleLevels;
-    float mfScaleFactor;
-    float mfLogScaleFactor;
-    vector<float> mvScaleFactors;
-    vector<float> mvInvScaleFactors;
-    vector<float> mvLevelSigma2;
-    vector<float> mvInvLevelSigma2;
+    int mnScaleLevels;//金字塔的层数，作者设置的是8
+    float mfScaleFactor;//图像缩放的比例，作者设置的是1.2
+    float mfLogScaleFactor;//这个应该是上面参数的log，即log(1.2)
+    vector<float> mvScaleFactors;///每个金字塔的缩放比例,比如说图形要缩小2倍一共4层，则保存的就是[1,2,4,8]
+    vector<float> mvInvScaleFactors;//mvScaleFactors的倒数,保存的是[1,1/2,1/4,1/8]
+    vector<float> mvLevelSigma2;//是mvScaleFactor的平方,保存的是[1,2*2,4*4,8*8]
+    vector<float> mvInvLevelSigma2;//是mvLevelSigma2的倒数
 
     // Undistorted Image Bounds (computed once).
     static float mnMinX;
@@ -204,8 +211,8 @@ private:
     // Rotation, translation and camera center
     cv::Mat mRcw;
     cv::Mat mtcw;
-    cv::Mat mRwc;
-    cv::Mat mOw; //==mtwc
+    cv::Mat mRwc;//能够将相机坐标系的坐标变换至世界坐标系下
+    cv::Mat mOw; //==mTwc，相机光心在世界坐标系下的位置
 };
 
 }// namespace ORB_SLAM

@@ -27,7 +27,8 @@
 
 namespace ORB_SLAM2
 {
-
+//DBoW2::FORB::TDescriptor = cv::Mat
+//
 typedef DBoW2::TemplatedVocabulary<DBoW2::FORB::TDescriptor, DBoW2::FORB>
   ORBVocabulary;
 

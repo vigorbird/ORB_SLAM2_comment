@@ -63,6 +63,8 @@ protected:
   const ORBVocabulary* mpVoc;
 
   // Inverted file
+  //所谓的反向索引，每一个叶子节点就是一个”单词“，
+  //每一个单词都有一个反向索引里面装的是这个dataBase中有这个”单词"的所有关键帧。
   std::vector<list<KeyFrame*> > mvInvertedFile;
 
   // Mutex

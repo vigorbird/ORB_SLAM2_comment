@@ -34,15 +34,17 @@ namespace ORB_SLAM2
 {
 
 
+//pKF1表示当前帧；pKF2表示闭环候选帧；vpMatched12表示当前帧和闭环候选帧所匹配的地图点；
+//此函数的主要作用是更新Sim3Solver中的参数
 Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> &vpMatched12, const bool bFixScale):
     mnIterations(0), mnBestInliers(0), mbFixScale(bFixScale)
 {
     mpKF1 = pKF1;
     mpKF2 = pKF2;
 
-    vector<MapPoint*> vpKeyFrameMP1 = pKF1->GetMapPointMatches();
+    vector<MapPoint*> vpKeyFrameMP1 = pKF1->GetMapPointMatches();//当前帧的地图点
 
-    mN1 = vpMatched12.size();
+    mN1 = vpMatched12.size();//当前帧和闭环候选关键帧匹配的地图点数
 
     mvpMapPoints1.reserve(mN1);
     mvpMapPoints2.reserve(mN1);
@@ -51,20 +53,21 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
     mvX3Dc1.reserve(mN1);
     mvX3Dc2.reserve(mN1);
 
-    cv::Mat Rcw1 = pKF1->GetRotation();
+    cv::Mat Rcw1 = pKF1->GetRotation();//世界坐标系下当前帧的旋转矩阵
     cv::Mat tcw1 = pKF1->GetTranslation();
-    cv::Mat Rcw2 = pKF2->GetRotation();
+    cv::Mat Rcw2 = pKF2->GetRotation();//世界坐标系下的闭环候选关键帧的旋转矩阵
     cv::Mat tcw2 = pKF2->GetTranslation();
 
     mvAllIndices.reserve(mN1);
 
+    //遍历已经匹配的地图点数
     size_t idx=0;
     for(int i1=0; i1<mN1; i1++)
     {
         if(vpMatched12[i1])
         {
-            MapPoint* pMP1 = vpKeyFrameMP1[i1];
-            MapPoint* pMP2 = vpMatched12[i1];
+            MapPoint* pMP1 = vpKeyFrameMP1[i1];//当前帧的地图点
+            MapPoint* pMP2 = vpMatched12[i1];//当前帧和闭环候选关键帧已经匹配的地图点
 
             if(!pMP1)
                 continue;
@@ -72,8 +75,8 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
             if(pMP1->isBad() || pMP2->isBad())
                 continue;
 
-            int indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);
-            int indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);
+            int indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);//当前帧地图点在当前帧中的序号
+            int indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);//当前帧和闭环候选关键帧已经匹配的地图点在闭环候选关键帧中的序号
 
             if(indexKF1<0 || indexKF2<0)
                 continue;
@@ -84,45 +87,48 @@ Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> 
             const float sigmaSquare1 = pKF1->mvLevelSigma2[kp1.octave];
             const float sigmaSquare2 = pKF2->mvLevelSigma2[kp2.octave];
 
-            mvnMaxError1.push_back(9.210*sigmaSquare1);
+            mvnMaxError1.push_back(9.210*sigmaSquare1);//这个参数用于判定样本点是否为inliner。
             mvnMaxError2.push_back(9.210*sigmaSquare2);
 
             mvpMapPoints1.push_back(pMP1);
             mvpMapPoints2.push_back(pMP2);
             mvnIndices1.push_back(i1);
 
-            cv::Mat X3D1w = pMP1->GetWorldPos();
-            mvX3Dc1.push_back(Rcw1*X3D1w+tcw1);
+            cv::Mat X3D1w = pMP1->GetWorldPos();//当前帧地图点的世界坐标
+            mvX3Dc1.push_back(Rcw1*X3D1w+tcw1);//使用当前帧地图点在当前帧坐标系下的坐标，更新mvX3Dc1
 
-            cv::Mat X3D2w = pMP2->GetWorldPos();
-            mvX3Dc2.push_back(Rcw2*X3D2w+tcw2);
+            cv::Mat X3D2w = pMP2->GetWorldPos();//	当前帧和闭环候选关键帧已经匹配的地图点在闭环候选关键帧坐标系下的坐标
+            mvX3Dc2.push_back(Rcw2*X3D2w+tcw2);//使用已经匹配地图点在闭环候选关键帧坐标系下的坐标更新mvX3Dc2
 
             mvAllIndices.push_back(idx);
             idx++;
         }
     }
 
-    mK1 = pKF1->mK;
-    mK2 = pKF2->mK;
+    mK1 = pKF1->mK;//当前帧的摄像机矩阵K
+    mK2 = pKF2->mK;//闭环候选关键帧的摄像机矩阵K
 
-    FromCameraToImage(mvX3Dc1,mvP1im1,mK1);
-    FromCameraToImage(mvX3Dc2,mvP2im2,mK2);
+    FromCameraToImage(mvX3Dc1,mvP1im1,mK1);//输出是mvP1im1，当前帧地图点在当前帧图像中的像素坐标
+    FromCameraToImage(mvX3Dc2,mvP2im2,mK2);//输出是mvP2im2，已经匹配的地图点在闭环候选关键帧图像中的像素坐标
 
     SetRansacParameters();
 }
 
+//输入的参数probability表示ransac运行k次后成功的概率=0.99
+//maxIterations表示ransac算法允许迭代运行的最高次数=300
+//minInliers表示所有样本中inliner可能的数量=20
 void Sim3Solver::SetRansacParameters(double probability, int minInliers, int maxIterations)
 {
-    mRansacProb = probability;
-    mRansacMinInliers = minInliers;
+    mRansacProb = probability;//对应的是ransac中的参数p，算法运行k次后成功的概率
+    mRansacMinInliers = minInliers;//对应的是ransac中所有样本中是inliner的数量
     mRansacMaxIts = maxIterations;    
 
-    N = mvpMapPoints1.size(); // number of correspondences
+    N = mvpMapPoints1.size(); // number of correspondences，对应ransac参数中所有样本的数量
 
     mvbInliersi.resize(N);
 
     // Adjust Parameters according to number of correspondences
-    float epsilon = (float)mRansacMinInliers/N;
+    float epsilon = (float)mRansacMinInliers/N;//对应的参数是ransac中的参数w
 
     // Set RANSAC iterations according to probability, epsilon, and max iterations
     int nIterations;
@@ -130,13 +136,17 @@ void Sim3Solver::SetRansacParameters(double probability, int minInliers, int max
     if(mRansacMinInliers==N)
         nIterations=1;
     else
-        nIterations = ceil(log(1-mRansacProb)/log(1-pow(epsilon,3)));
+        nIterations = ceil(log(1-mRansacProb)/log(1-pow(epsilon,3)));//对应的是ransac中的参数k，算法需要迭代多少次才能找到最优解
 
-    mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));
+    mRansacMaxIts = max(1,min(nIterations,mRansacMaxIts));//通过公式计算得到的迭代次数nIterations如果大于我们认为规定的次数maxIterations，则我们使用人为规定的迭代次数
 
     mnIterations = 0;
 }
 
+//就第一个参数是输入，其他的三个参数都是输出
+//vbInliers返回的是最优模型对应的inliner，序号表示对应地图点的序号，内容表示是否为inliner
+//nInliers返回的是最大inliner的个数
+//函数返回的值是候选闭环帧到当前帧的相对位姿变换
 cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInliers, int &nInliers)
 {
     bNoMore = false;
@@ -152,7 +162,8 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
     vector<size_t> vAvailableIndices;
 
     cv::Mat P3Dc1i(3,3,CV_32F);
-    cv::Mat P3Dc2i(3,3,CV_32F);
+    cv::Mat P3Dc2i(3,3,CV_32F); 
+	
 
     int nCurrentIterations = 0;
     while(mnIterations<mRansacMaxIts && nCurrentIterations<nIterations)
@@ -160,25 +171,26 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
         nCurrentIterations++;
         mnIterations++;
 
-        vAvailableIndices = mvAllIndices;
+        vAvailableIndices = mvAllIndices;//当前帧和闭环候选帧已经匹配地图点的序号
 
         // Get min set of points
+        //最少需要三组匹配点才能计算得到相对位姿变换
         for(short i = 0; i < 3; ++i)
         {
             int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size()-1);
 
             int idx = vAvailableIndices[randi];
 
-            mvX3Dc1[idx].copyTo(P3Dc1i.col(i));
-            mvX3Dc2[idx].copyTo(P3Dc2i.col(i));
+            mvX3Dc1[idx].copyTo(P3Dc1i.col(i));//当前帧的地图点在当前帧坐标系下的坐标
+            mvX3Dc2[idx].copyTo(P3Dc2i.col(i));//当前帧和闭环候选关键帧已经匹配地图点在闭环候选关键帧坐标系下的坐标
 
             vAvailableIndices[randi] = vAvailableIndices.back();
             vAvailableIndices.pop_back();
         }
 
-        ComputeSim3(P3Dc1i,P3Dc2i);
+        ComputeSim3(P3Dc1i,P3Dc2i);//根据三对地图点在两个坐标下的坐标，计算相对位姿(ICP)!!!!!!!!!!!!!!!!!!!!!!!!!重要函数
 
-        CheckInliers();
+        CheckInliers();//详见算法实现文档
 
         if(mnInliersi>=mnBestInliers)
         {
@@ -195,7 +207,7 @@ cv::Mat Sim3Solver::iterate(int nIterations, bool &bNoMore, vector<bool> &vbInli
                 for(int i=0; i<N; i++)
                     if(mvbInliersi[i])
                         vbInliers[mvnIndices1[i]] = true;
-                return mBestT12;
+                return mBestT12;//这个是计算成功后的返回值
             }
         }
     }
@@ -223,7 +235,16 @@ void Sim3Solver::ComputeCentroid(cv::Mat &P, cv::Mat &Pr, cv::Mat &C)
     }
 }
 
-void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
+//根据三对图点在两个坐标系下的坐标更新了Sim3Solver类中的如下四个变量 
+//cv::Mat mR12i; 
+//cv::Mat mt12i;
+//float ms12i;
+//cv::Mat mT12i;
+//cv::Mat mT21i;
+//输入参数是:P1=当前帧的地图点在当前帧坐标系下的坐标,按照列存储坐标(3*3矩阵)，相当于论文中的右坐标系
+//P2=当前帧和闭环候选关键帧已经匹配地图点在闭环候选关键帧坐标系下的坐标(3*3矩阵)，相当于论文中的左坐标系
+//注意本作者并没有使用论文中三个点的特殊情况(对应文章的第五章节)来求解，还是使用的普世的方法来解的。
+  void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
 {
     // Custom implementation of:
     // Horn 1987, Closed-form solution of absolute orientataion using unit quaternions
@@ -235,8 +256,8 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
     cv::Mat O1(3,1,Pr1.type()); // Centroid of P1
     cv::Mat O2(3,1,Pr2.type()); // Centroid of P2
 
-    ComputeCentroid(P1,Pr1,O1);
-    ComputeCentroid(P2,Pr2,O2);
+    ComputeCentroid(P1,Pr1,O1);//计算P1的几何中心O1,Pr1是P1的去位移坐标
+    ComputeCentroid(P2,Pr2,O2);//计算P2的几何中心O1,Pr2是P2的去位移坐标
 
     // Step 2: Compute M matrix
 
@@ -267,11 +288,13 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
 
     // Step 4: Eigenvector of the highest eigenvalue
 
-    cv::Mat eval, evec;
+    cv::Mat eval, evec;//矩阵N的特征值和特征向量
 
+    //计算矩阵N的特征值和特征向量，特征值保存在eval，特征向量保存在evec
+    //其中特征值按照从大到小的顺序排列
     cv::eigen(N,eval,evec); //evec[0] is the quaternion of the desired rotation
 
-    cv::Mat vec(1,3,evec.type());
+    cv::Mat vec(1,3,evec.type());//这个是轴角表示向量
     (evec.row(0).colRange(1,4)).copyTo(vec); //extract imaginary part of the quaternion (sin*axis)
 
     // Rotation angle. sin is the norm of the imaginary part, cos is the real part
@@ -279,16 +302,16 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
 
     vec = 2*ang*vec/norm(vec); //Angle-axis representation. quaternion angle is the half
 
-    mR12i.create(3,3,P1.type());
+    mR12i.create(3,3,P1.type());//mR12i是求得的R
 
     cv::Rodrigues(vec,mR12i); // computes the rotation matrix from angle-axis
 
     // Step 5: Rotate set 2
 
-    cv::Mat P3 = mR12i*Pr2;
+    cv::Mat P3 = mR12i*Pr2;//这个参数是用在求尺度时
 
     // Step 6: Scale
-
+   
     if(!mbFixScale)
     {
         double nom = Pr1.dot(P3);
@@ -313,7 +336,7 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
     // Step 7: Translation
 
     mt12i.create(1,3,P1.type());
-    mt12i = O1 - ms12i*mR12i*O2;
+    mt12i = O1 - ms12i*mR12i*O2;//求得的t
 
     // Step 8: Transformation
 
@@ -337,17 +360,18 @@ void Sim3Solver::ComputeSim3(cv::Mat &P1, cv::Mat &P2)
 }
 
 
+//详见算法实现文档
 void Sim3Solver::CheckInliers()
 {
     vector<cv::Mat> vP1im2, vP2im1;
-    Project(mvX3Dc2,vP2im1,mT12i,mK1);
-    Project(mvX3Dc1,vP1im2,mT21i,mK2);
+    Project(mvX3Dc2,vP2im1,mT12i,mK1);//将候选闭环关键帧坐标系下的地图点根据相对位姿变换，投影到当前帧的图像中得到像素坐标vP2im1
+    Project(mvX3Dc1,vP1im2,mT21i,mK2);//将当前帧坐标系下的地图点根据相对位姿变换，投影到候选闭环关键帧的图像中得到像素坐标vP2im2
 
     mnInliersi=0;
 
     for(size_t i=0; i<mvP1im1.size(); i++)
     {
-        cv::Mat dist1 = mvP1im1[i]-vP2im1[i];
+        cv::Mat dist1 = mvP1im1[i]-vP2im1[i];//当前帧地图点在当前帧图像中的坐标-通过相对变换得到的像素坐标
         cv::Mat dist2 = vP1im2[i]-mvP2im2[i];
 
         const float err1 = dist1.dot(dist1);
@@ -379,6 +403,7 @@ float Sim3Solver::GetEstimatedScale()
     return mBestScale;
 }
 
+//已经知道两个帧之间的相对位姿变换Tcw,并且知道地图点在某个帧坐标系下的坐标vP3Dw，求得地图点在另一帧图像中的图像坐标vP2D
 void Sim3Solver::Project(const vector<cv::Mat> &vP3Dw, vector<cv::Mat> &vP2D, cv::Mat Tcw, cv::Mat K)
 {
     cv::Mat Rcw = Tcw.rowRange(0,3).colRange(0,3);
@@ -402,6 +427,7 @@ void Sim3Solver::Project(const vector<cv::Mat> &vP3Dw, vector<cv::Mat> &vP2D, cv
     }
 }
 
+//将摄像机坐标系下的坐标点vP3Dc通过摄像机矩阵K得到在图像中的像素坐标vP2D
 void Sim3Solver::FromCameraToImage(const vector<cv::Mat> &vP3Dc, vector<cv::Mat> &vP2D, cv::Mat K)
 {
     const float &fx = K.at<float>(0,0);

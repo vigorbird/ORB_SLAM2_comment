@@ -19,6 +19,7 @@
 namespace DBoW2 {
 
 /// Functions to manipulate ORB descriptors
+//作者这里使用了保护继承！！！！
 class FORB: protected FClass
 {
 public:
@@ -28,15 +29,14 @@ public:
   /// Pointer to a single descriptor
   typedef const TDescriptor *pDescriptor;
   /// Descriptor length (in bytes)
-  static const int L;
+  static const int L;//非常重要,在对应的.cpp文件中是const int FORB::L=32;
 
   /**
    * Calculates the mean value of a set of descriptors
    * @param descriptors
    * @param mean mean descriptor
    */
-  static void meanValue(const std::vector<pDescriptor> &descriptors,
-    TDescriptor &mean);
+  static void meanValue(const std::vector<pDescriptor> &descriptors, TDescriptor &mean);
 
   /**
    * Calculates the distance between two descriptors
@@ -65,11 +65,9 @@ public:
    * @param descriptors
    * @param mat (out) NxL 32F matrix
    */
-  static void toMat32F(const std::vector<TDescriptor> &descriptors,
-    cv::Mat &mat);
+  static void toMat32F(const std::vector<TDescriptor> &descriptors, cv::Mat &mat);
 
-  static void toMat8U(const std::vector<TDescriptor> &descriptors,
-    cv::Mat &mat);
+  static void toMat8U(const std::vector<TDescriptor> &descriptors, cv::Mat &mat);
 
 };
 

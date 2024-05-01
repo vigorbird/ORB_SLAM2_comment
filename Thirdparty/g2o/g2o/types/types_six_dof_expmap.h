@@ -181,6 +181,7 @@ public:
 
   bool write(std::ostream& os) const;
 
+//
   void computeError()  {
     const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[0]);
     Vector3d obs(_measurement);

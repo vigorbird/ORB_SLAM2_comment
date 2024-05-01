@@ -89,7 +89,7 @@ int FORB::distance(const FORB::TDescriptor &a,
 
   int dist=0;
 
-  for(int i=0; i<8; i++, pa++, pb++)
+  for(int i=0; i<8; i++, pa++, pb++)//为什么是8??????????????????
   {
       unsigned  int v = *pa ^ *pb;
       v = v - ((v >> 1) & 0x55555555);
@@ -116,7 +116,7 @@ std::string FORB::toString(const FORB::TDescriptor &a)
 }
 
 // --------------------------------------------------------------------------
-  
+//根据string的结果转换为int的变量  
 void FORB::fromString(FORB::TDescriptor &a, const std::string &s)
 {
   a.create(1, FORB::L, CV_8U);
